@@ -8,10 +8,15 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install dependensi sistem dasar
+# 1. Install dependencies sistem untuk OCR (Tesseract & Poppler)
+# tesseract-ocr-ind: agar bisa baca bahasa Indonesia dengan baik
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-ind \
     && rm -rf /var/lib/apt/lists/*
 
 # Salin file requirements
@@ -20,18 +25,14 @@ COPY requirements.txt .
 # Install library Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download data NLTK (WordNet & Punkt) saat build
-# Ini penting agar tidak download setiap kali aplikasi start
-RUN python -m nltk.downloader wordnet punkt
-
 # Salin seluruh kode aplikasi ke dalam container
 COPY . .
 
 # Expose port default Streamlit
 EXPOSE 8501
 
-# Healthcheck untuk memastikan container berjalan
+# Healthcheck agar platform deployment tahu aplikasi sudah siap
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
-# Perintah untuk menjalankan aplikasi
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Jalankan aplikasi dengan maxUploadSize 1GB
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.maxUploadSize=1000"]

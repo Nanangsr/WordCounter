@@ -1,4 +1,7 @@
 streamlit
 python-docx
 pymupdf
-nltk
+pandas
+pytesseract
+pdf2image
+pillow

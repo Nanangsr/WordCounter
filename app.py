@@ -1,241 +1,218 @@
 import streamlit as st
-import time
-import logic
+import pandas as pd
 import styles
+import logic
+from typing import Dict, Any, List
 
-# Konfigurasi Awal
-st.set_page_config(
-    page_title="Word Count App",
-    page_icon="📝",
-    layout="centered"
-)
+# --- Konfigurasi Awal ---
+def configure_page() -> None:
+    st.set_page_config(
+        page_title="Annual Report Analyzer",
+        page_icon="📊",
+        layout="wide"
+    )
+    st.markdown(styles.get_main_css(), unsafe_allow_html=True)
+    st.markdown(styles.get_download_btn_css(), unsafe_allow_html=True)
 
-st.markdown(styles.get_main_css(), unsafe_allow_html=True)
+# --- Manajemen Session State ---
+def init_session_state() -> None:
+    if 'step' not in st.session_state: st.session_state.step = 1
+    if 'zip_name' not in st.session_state: st.session_state.zip_name = ""
+    if 'analysis_results' not in st.session_state: st.session_state.analysis_results = []
 
-st.markdown("""
-<style>
-.stDownloadButton > button {
-    background-color: #89CFF0;
-    color: #0E4E68 !important;
-    border-radius: 50px;
-    font-weight: 700;
-    border: none;
-    padding: 0.6rem 2rem;
-    width: 100%;
-    transition: transform 0.2s;
-}
-.stDownloadButton > button:hover {
-    transform: scale(1.02);
-    background-color: white;
-    color: #0E4E68 !important;
-    border: none;
-}
-.stDownloadButton > button:active {
-    background-color: #89CFF0;
-    color: #0E4E68 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Inisialisasi Session State
-if 'step' not in st.session_state: st.session_state.step = 1
-if 'file_data' not in st.session_state: st.session_state.file_data = None
-if 'file_name' not in st.session_state: st.session_state.file_name = ""
-if 'target_word' not in st.session_state: st.session_state.target_word = ""
-if 'final_count' not in st.session_state: st.session_state.final_count = 0
-if 'top_words' not in st.session_state: st.session_state.top_words = []
-if 'synonyms' not in st.session_state: st.session_state.synonyms = []
-if 'multi_results' not in st.session_state: st.session_state.multi_results = None
-
-# Fungsi Navigasi
-def reset_app():
+def reset_app() -> None:
     st.session_state.step = 1
-    st.session_state.file_data = None
-    st.session_state.top_words = []
-    st.session_state.synonyms = []
-    st.session_state.multi_results = None
+    st.session_state.zip_name = ""
+    st.session_state.analysis_results = []
+    st.rerun()
 
-def process_input(input_text):
-    """
-    Memproses input pengguna.
-    Bisa menangani satu kata ATAU banyak kata yang dipisah koma.
-    """
-    st.session_state.target_word = input_text
-    st.session_state.multi_results = None
-    
-    # Cek apakah input mengandung koma (indikasi multi-word)
-    if ',' in input_text:
-        # Split berdasarkan koma dan bersihkan spasi
-        words_list = [w.strip() for w in input_text.split(',') if w.strip()]
-        
-        with st.spinner("Analyzing multiple words..."):
-            time.sleep(0.8)
-            results = logic.count_multiple_words(st.session_state.file_data, words_list)
-            st.session_state.multi_results = results
-            st.session_state.step = 4
-            st.rerun()
-            
-    else:
-        word = input_text.strip()
-        with st.spinner("Analyzing..."):
-            time.sleep(0.8)
-            count = logic.count_word_occurrences(st.session_state.file_data, word)
-            st.session_state.final_count = count
-            st.session_state.synonyms = logic.get_synonyms(word)
-            st.session_state.step = 4
-            st.rerun()
-
-# LANDING PAGE
-if st.session_state.step == 1:
+# --- Fungsi Render Halaman ---
+def render_landing_page() -> None:
     st.write("")
-    st.markdown("<div style='font-size: 5rem; text-align: center;'>📝</div>", unsafe_allow_html=True)
-    st.markdown('<h1 class="app-title">Word Count</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="app-subtitle">Upload documents, count words, and get recommendations instantly.</p>', unsafe_allow_html=True)
-    
+    st.write("")
+    st.markdown("<div style='font-size: 5rem; text-align: center;'>📊</div>", unsafe_allow_html=True)
+    st.markdown('<h1 class="app-title">Annual Report Analyzer</h1>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="app-subtitle">Batch Analysis for Annual Reports.<br>'
+        'Detects Fintech, AI, Blockchain keywords automatically.</p>', 
+        unsafe_allow_html=True
+    )
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("✨ Start New Analysis", use_container_width=True):
+        if st.button("✨ Start Analysis", use_container_width=True):
             st.session_state.step = 2
             st.rerun()
 
-# UPLOAD DOCUMENT
-elif st.session_state.step == 2:
-    st.markdown("## Upload Document")
-    st.markdown("<p style='text-align:center; opacity:0.7'>Support .docx, .pdf, .txt</p>", unsafe_allow_html=True)
+def render_upload_page() -> None:
+    st.markdown("## Upload Reports (ZIP)")
+    st.markdown("<p style='text-align:center; opacity:0.7'>Upload a .zip file containing PDF/DOCX annual reports.</p>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("", type=['docx', 'pdf', 'txt'], label_visibility="collapsed")
+    uploaded_zip = st.file_uploader(
+        label="Upload Annual Reports (ZIP format)", 
+        type=['zip'], 
+        label_visibility="collapsed"
+    )
     
-    if uploaded_file:
-        ext = uploaded_file.name.split('.')[-1].lower()
-        try:
-            if ext == 'docx':
-                text = logic.read_docx(uploaded_file)
-            elif ext == 'pdf':
-                text = logic.read_pdf(uploaded_file)
-            elif ext == 'txt':
-                text = logic.read_txt(uploaded_file)
-            
-            st.session_state.file_data = text
-            st.session_state.file_name = uploaded_file.name
-            st.session_state.top_words = logic.get_top_words(text, top_n=4)
-            
-            time.sleep(0.5)
-            st.session_state.step = 3
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
+    c_opt1, c_opt2 = st.columns(2)
+    with c_opt1:
+        is_bilingual = st.checkbox("Enable Bilingual Search (Indonesia + English)", value=False)
+    with c_opt2:
+        # LOGIKA BARU: Include Scanned Docs
+        include_scanned = st.checkbox(
+            "Sertakan Dokumen Scan (OCR)", 
+            value=False, 
+            help="Jika dicentang, file PDF scan (gambar) akan diproses OCR (Maks 50 halaman pertama) dengan peningkatan kualitas gambar (DPI 300 + Sharpening)."
+        )
+    
+    if uploaded_zip:
+        st.session_state.zip_name = uploaded_zip.name
+        st.write("")
+        col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+        
+        with col_c2:
+            if st.button("🚀 Process Files", use_container_width=True):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                def update_progress(current, total, filename):
+                    percent = int((current / total) * 100)
+                    progress_bar.progress(percent)
+                    clean_name = filename.split('/')[-1]
+                    status_text.text(f"Processing ({current}/{total}): {clean_name}")
+
+                try:
+                    results = logic.process_zip_file(
+                        uploaded_zip, 
+                        is_bilingual, 
+                        include_scanned,
+                        progress_callback=update_progress
+                    )
+                    
+                    st.session_state.analysis_results = results
+                    st.session_state.step = 3
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Terjadi kesalahan fatal: {str(e)}")
 
     st.write("")
     if st.button("Cancel"):
         reset_app()
-        st.rerun()
 
-# INPUT & PROCESS
-elif st.session_state.step == 3:
-    st.markdown("## Enter Target Word(s)")
-    st.markdown(f"<p style='text-align:center; opacity:0.7'>Source: {st.session_state.file_name}</p>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; font-size: 0.8rem; margin-top: -15px; color: #89CFF0;'>Tip: Separate with commas for multiple words (e.g., banking, mobile)</p>", unsafe_allow_html=True)
+def render_results_page() -> None:
+    st.markdown("## Analysis Complete")
+    results = st.session_state.analysis_results
     
-    # Input Manual
-    manual_input = st.text_input("", placeholder="Type words here...", label_visibility="collapsed")
-    
-    st.write("")
-    
-    # Rekomendasi Top Words
-    if st.session_state.top_words:
-        st.markdown("<p style='text-align:center; font-size:0.9rem; margin-bottom:5px;'>Suggested words:</p>", unsafe_allow_html=True)
-        cols = st.columns(len(st.session_state.top_words))
-        for idx, word in enumerate(st.session_state.top_words):
-            with cols[idx]:
-                if st.button(word, key=f"sug_{idx}"):
-                    process_input(word)
-    
-    st.write("")
-    
-    # Tombol Proses
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        if manual_input:
-            if st.button("🚀 Count Words", use_container_width=True):
-                process_input(manual_input)
+    if not results:
+        st.warning("Tidak ada file valid yang ditemukan atau diproses.")
+        if st.button("📂 Start Over"): reset_app()
+        return
 
+    df = pd.DataFrame(results)
+    keyword_cols = list(logic.BASE_PATTERNS.keys())
+    
+    df_success = df[df["Status"] != "SKIPPED (Scan)"]
+    
+    total_files = len(results)
+    total_processed = len(df_success)
+    
+    if not df_success.empty:
+        total_keyword_hits = df_success[keyword_cols].sum().sort_values(ascending=False)
+        top_keyword = total_keyword_hits.index[0] if not total_keyword_hits.empty else "None"
+        top_keyword_count = total_keyword_hits.iloc[0] if not total_keyword_hits.empty else 0
+        total_words_scanned = df_success["Total Kata Dokumen"].sum()
+    else:
+        top_keyword = "N/A"
+        top_keyword_count = 0
+        total_words_scanned = 0
+
+    st.markdown(f"""
+    <div class="metric-container">
+        <div class="metric-card">
+            <div class="metric-label">Files Processed</div>
+            <div class="metric-value">{total_processed}/{total_files}</div>
+            <div class="metric-sub">Reports analyzed (Scans skipped: {total_files - total_processed})</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Global Top Topic</div>
+            <div class="metric-value" style="font-size: 2.5rem;">{top_keyword}</div>
+            <div class="metric-sub">{top_keyword_count} occurrences</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Total Words</div>
+            <div class="metric-value" style="font-size: 2.5rem;">{total_words_scanned:,}</div>
+            <div class="metric-sub">Across valid files</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.divider()
     
-    with st.expander("📄 View Extracted Content"):
-        st.text_area("", st.session_state.file_data, height=200, disabled=True)
+    st.markdown("### 📂 File Breakdown")
+    cols = st.columns(3)
+    
+    for i, row in df.iterrows():
+        with cols[i % 3]:
+            if row['Status'] == 'SKIPPED (Scan)':
+                st.markdown(f"""
+                <div class="file-card" style="border: 1px dashed #ccc; opacity: 0.6;">
+                    <div class="fc-header" title="{row['Nama Bank']}">{row['Nama Bank']}</div>
+                    <div class="fc-sub">{row['Tahun']} • {row['Nama File'][:15]}...</div>
+                    <div style="margin-top:20px; text-align:center; font-style:italic;">
+                        ⚠️ Skipped (Scanned File)
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                row_keywords = row[keyword_cols]
+                file_top_kw = row_keywords.idxmax() if not row_keywords.empty else "N/A"
+                file_top_count = row_keywords.max() if not row_keywords.empty else 0
+                
+                card_html = styles.render_file_card(
+                    bank=row['Nama Bank'],
+                    year=row['Tahun'],
+                    filename=row['Nama File'],
+                    total_words=row['Total Kata Dokumen'],
+                    top_keyword=file_top_kw,
+                    top_count=file_top_count
+                )
+                st.markdown(card_html, unsafe_allow_html=True)
 
-    if st.button("Back to Upload"):
-        st.session_state.step = 2
-        st.rerun()
-
-# RESULT
-elif st.session_state.step == 4:
     st.write("")
-    
-    # Tampilkan Kartu Hasil
-    if st.session_state.multi_results:
-        st.markdown(
-            styles.render_multi_result_card(st.session_state.multi_results),
-            unsafe_allow_html=True
-        )
-        # Siapkan data download untuk Multi
-        dl_target = None 
-        dl_result = st.session_state.multi_results
-    else:
-        st.markdown(
-            styles.render_result_card(
-                st.session_state.final_count, 
-                st.session_state.target_word, 
-                st.session_state.synonyms
-            ), 
-            unsafe_allow_html=True
-        )
-        # Siapkan data download untuk Single
-        dl_target = st.session_state.target_word
-        dl_result = st.session_state.final_count
+    st.divider()
 
-    # DOWNLOAD SECTION
-    st.markdown('<div class="download-header">📥 Download Results</div>', unsafe_allow_html=True)
+    st.markdown('<div class="download-header">📥 Export Data</div>', unsafe_allow_html=True)
+    csv_data = logic.generate_csv_output(results)
+    safe_zip_name = st.session_state.zip_name.replace('.zip', '') if st.session_state.zip_name else "Analysis"
     
-    # 1. Siapkan Nama File: (NamaAsli)_WordCount
-    original_name = st.session_state.file_name
-    base_name = original_name.rsplit('.', 1)[0] if '.' in original_name else original_name
-    filename_csv = f"{base_name}_WordCount.csv"
-    filename_txt = f"{base_name}_WordCount.txt"
-    
-    # 2. Generate Konten File
-    csv_data = logic.format_results_for_download(dl_target, dl_result, "csv")
-    txt_data = logic.format_results_for_download(dl_target, dl_result, "txt")
-    
-    # 3. Tombol Download 
-    d1, d2 = st.columns(2)
-    with d1:
+    col_d1, col_d2, col_d3 = st.columns([1, 2, 1])
+    with col_d2:
         st.download_button(
-            label="📄 Download CSV",
+            label="📄 Download Full CSV Report",
             data=csv_data,
-            file_name=filename_csv,
+            file_name=f"{safe_zip_name}_Analysis.csv",
             mime="text/csv",
             use_container_width=True
         )
-    with d2:
-        st.download_button(
-            label="📝 Download TXT",
-            data=txt_data,
-            file_name=filename_txt,
-            mime="text/plain",
-            use_container_width=True
-        )
 
     st.write("")
-    st.divider()
+    st.markdown("### 🔎 Detailed Data Preview")
     
-    # Navigasi Bawah
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Count Another Word"):
-            st.session_state.step = 3
-            st.rerun()
-    with col2:
-        if st.button("📂 Start Over"):
-            reset_app()
-            st.rerun()
+    # PERBAIKAN: Menambahkan 'Tahun' dan 'Total Kata Dokumen' ke dalam list display
+    display_cols = ["Nama Bank", "Tahun", "Status", "Nama File"] + keyword_cols + ["Total Kata Dokumen"]
+    valid_cols = [c for c in display_cols if c in df.columns]
+    
+    st.dataframe(df[valid_cols], use_container_width=True)
+
+    st.write("")
+    if st.button("📂 Start Over"):
+        reset_app()
+
+def main() -> None:
+    configure_page()
+    init_session_state()
+    if st.session_state.step == 1: render_landing_page()
+    elif st.session_state.step == 2: render_upload_page()
+    elif st.session_state.step == 3: render_results_page()
+
+if __name__ == "__main__":
+    main()
