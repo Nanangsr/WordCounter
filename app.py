@@ -4,7 +4,7 @@ import styles
 import logic
 from typing import Dict, Any, List
 
-# --- Konfigurasi Awal ---
+# Konfigurasi Awal
 def configure_page() -> None:
     st.set_page_config(
         page_title="Annual Report Analyzer",
@@ -14,7 +14,7 @@ def configure_page() -> None:
     st.markdown(styles.get_main_css(), unsafe_allow_html=True)
     st.markdown(styles.get_download_btn_css(), unsafe_allow_html=True)
 
-# --- Manajemen Session State ---
+# Manajemen Session State
 def init_session_state() -> None:
     if 'step' not in st.session_state: st.session_state.step = 1
     if 'zip_name' not in st.session_state: st.session_state.zip_name = ""
@@ -26,7 +26,7 @@ def reset_app() -> None:
     st.session_state.analysis_results = []
     st.rerun()
 
-# --- Fungsi Render Halaman ---
+# Fungsi Render Halaman
 def render_landing_page() -> None:
     st.write("")
     st.write("")
@@ -57,7 +57,6 @@ def render_upload_page() -> None:
     with c_opt1:
         is_bilingual = st.checkbox("Enable Bilingual Search (Indonesia + English)", value=False)
     with c_opt2:
-        # LOGIKA BARU: Include Scanned Docs
         include_scanned = st.checkbox(
             "Sertakan Dokumen Scan (OCR)", 
             value=False, 
@@ -215,4 +214,5 @@ def main() -> None:
     elif st.session_state.step == 3: render_results_page()
 
 if __name__ == "__main__":
+
     main()
