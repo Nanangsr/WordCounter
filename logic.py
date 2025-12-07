@@ -1,5 +1,5 @@
 import docx
-import fitz  # PyMuPDF
+import fitz  
 import re
 import zipfile
 import io
@@ -8,10 +8,10 @@ import logging
 import concurrent.futures
 import pytesseract
 from pdf2image import convert_from_bytes
-from PIL import Image, ImageEnhance  # Tambah ImageEnhance untuk preprocessing
+from PIL import Image, ImageEnhance  
 from typing import List, Dict, Any, Union, Pattern, Tuple, Callable, Optional
 
-# --- KONFIGURASI LOGGING ---
+# KONFIGURASI LOGGING
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -19,11 +19,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- KONFIGURASI OCR ---
-# Tetap batasi halaman agar tidak timeout, tapi kualitas per halaman dimaksimalkan
+# KONFIGURASI OCR 
 MAX_OCR_PAGES = 50 
 
-# --- 1. DEFINISI POLA REGEX ---
+# 1. DEFINISI POLA REGEX
 
 BASE_PATTERNS: Dict[str, List[str]] = {
     "Fintech": [r"fintech", r"financial technology"],
@@ -69,7 +68,7 @@ PATTERNS_EN = get_compiled_patterns(bilingual=False)
 PATTERNS_BI = get_compiled_patterns(bilingual=True)
 
 
-# --- 2. FUNGSI PEMBACAAN FILE ---
+# 2. FUNGSI PEMBACAAN FILE
 
 def extract_year(filename: str, zip_name: str) -> str:
     year_pattern = r'\b(20\d{2}|19\d{2})\b'
@@ -117,13 +116,11 @@ def read_pdf_ocr(file_bytes: bytes, filename: str) -> str:
     logger.info(f"[{filename}] Memulai proses OCR Enhanced...")
     text_content = []
     try:
-        # PENTING: Naikkan DPI ke 300 untuk menangkap huruf kecil.
-        # Ini akan sedikit lebih lambat dari 200, tapi jauh lebih akurat.
         images = convert_from_bytes(
             file_bytes, 
             dpi=300, 
             fmt='jpeg', 
-            grayscale=True, # Awal grayscale dari poppler
+            grayscale=True, #
             last_page=MAX_OCR_PAGES
         )
         
@@ -134,11 +131,8 @@ def read_pdf_ocr(file_bytes: bytes, filename: str) -> str:
             if (i + 1) % 5 == 0:
                 logger.info(f"[{filename}] OCR processing page {i+1}/{total_pages_scanned}")
             
-            # --- TAHAP PREPROCESSING CITRA ---
-            # Proses gambar agar lebih tajam dan kontras tinggi sebelum dibaca Tesseract
             processed_img = preprocess_image_for_ocr(img)
             
-            # Gunakan config standard psm 3 (Auto)
             text = pytesseract.image_to_string(processed_img, lang='eng+ind', config='--psm 3') 
             text_content.append(text)
             
@@ -188,7 +182,7 @@ def count_total_words(text: str) -> int:
     return len(text.split())
 
 
-# --- 3. LOGIKA UTAMA (ANALISIS) ---
+# 3. LOGIKA UTAMA (ANALISIS)
 
 def analyze_single_file(args: Tuple) -> Dict[str, Any]:
     zip_name, filename, file_bytes, is_bilingual, include_scanned = args
@@ -318,4 +312,5 @@ def generate_csv_output(results_list: List[Dict[str, Any]]) -> str:
                 
         line.append(str(row.get("Total Kata Dokumen", 0)))
         csv_str += ",".join(line) + "\n"
+
     return csv_str
