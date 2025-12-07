@@ -1,6 +1,5 @@
 def get_main_css() -> str:
     """
-    Mengembalikan string CSS untuk styling utama aplikasi.
     Mengatur font, warna background, kartu metrik, dan kartu file.
     """
     return """
@@ -154,7 +153,7 @@ def get_main_css() -> str:
     """
 
 def get_download_btn_css() -> str:
-    """Mengembalikan CSS khusus untuk tombol download agar seragam."""
+    """CSS khusus untuk tombol download agar seragam."""
     return """
     <style>
     .stDownloadButton > button {
@@ -205,4 +204,5 @@ def render_file_card(bank: str, year: str, filename: str, total_words: int, top_
             <span>{top_keyword} ({top_count})</span>
         </div>
     </div>
+
     """
